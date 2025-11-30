@@ -1,18 +1,44 @@
-use crossterm::event::{self, Event};
-use ratatui::{text::Text, Frame};
+use std::path::PathBuf;
 
-fn main() {
-    let mut terminal = ratatui::init();
-    loop {
-        terminal.draw(draw).expect("failed to draw frame");
-        if matches!(event::read().expect("failed to read event"), Event::Key(_)) {
-            break;
-        }
-    }
-    ratatui::restore();
+use clap::Parser;
+
+use crate::client::Client;
+use crate::server::Server;
+use crate::traits::Runnable;
+
+mod client;
+mod server;
+mod traits;
+mod transport;
+
+#[derive(Debug, Parser)]
+struct Args {
+    #[clap(long)]
+    server: bool
 }
 
-fn draw(frame: &mut Frame) {
-    let text = Text::raw("Hello World!");
-    frame.render_widget(text, frame.area());
+struct Settings {
+    client_timeout: u64,
+    client_retry_ms: u64,
+    socket_path: PathBuf,
+}
+
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> anyhow::Result<()> {
+    let args = Args::parse();
+
+    // Temporary
+    let settings = Settings {
+        client_timeout: 10,
+        client_retry_ms: 100,
+        socket_path: "./test.sock".into()
+    };
+
+    if args.server {
+        let mut serv = Server::connect(settings).await?;
+        serv.run().await
+    } else {
+        let mut client = Client::connect(settings).await?;
+        client.run().await
+    }
 }
