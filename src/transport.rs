@@ -1,11 +1,14 @@
 use std::io;
-use std::io::Read;
-use std::io::Write;
 use std::path::Path;
-use std::os::unix::net::UnixStream;
 
+use futures::SinkExt;
+use futures::StreamExt;
 use serde::Deserialize;
 use serde::Serialize;
+use tokio::net::UnixStream;
+use tokio_util::bytes::Bytes;
+use tokio_util::codec::Framed;
+use tokio_util::codec::LengthDelimitedCodec;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", content = "content")]
@@ -16,39 +19,35 @@ pub enum TransportEvent {
 
 #[derive(Debug)]
 pub struct TransportClient {
-    stream: UnixStream
+    framed: Framed<UnixStream, LengthDelimitedCodec>
 }
 
 impl TransportClient {
     pub async fn connect(path: impl AsRef<Path>) -> anyhow::Result<Self> {
-        let stream = UnixStream::connect(path)?;
-        Ok(Self { stream })
+        let stream = UnixStream::connect(path).await?;
+        Self::from_stream(stream)
     }
 
     pub fn from_stream(stream: UnixStream) -> anyhow::Result<Self> {
-        Ok(Self { stream })
+        let codec = LengthDelimitedCodec::new();
+        let framed = Framed::new(stream, codec);
+        Ok(Self { framed })
     }
 
     pub async fn send(&mut self, msg: TransportEvent) -> io::Result<()> {
         let payload = serde_json::to_vec(&msg)?;
-        let len_buf = (payload.len() as u32).to_be_bytes();
-
-        self.stream.write_all(&len_buf)?;
-        self.stream.write_all(&payload)?;
-
-        self.stream.flush()
+        self.framed.send(Bytes::from(payload)).await?;
+        Ok(())
     }
 
-    pub async fn recv(&mut self) -> io::Result<TransportEvent> {
-        let mut len_buf = [0u8; 4];
-
-        self.stream.read_exact(&mut len_buf)?;
-
-        let len = u32::from_be_bytes(len_buf);
-        let mut payload = vec![0; len as usize];
-
-        self.stream.read_exact(&mut payload)?;
-
-        Ok(serde_json::from_slice::<TransportEvent>(&payload)?)
+    pub async fn recv(&mut self) -> io::Result<Option<TransportEvent>> {
+        match self.framed.next().await {
+            Some(Ok(f)) => {
+                let evt = serde_json::from_slice::<TransportEvent>(&f)?;
+                Ok(Some(evt))
+            },
+            Some(Err(e)) => Err(io::Error::other(e)),
+            None => Ok(None),
+        }
     }
 }

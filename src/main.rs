@@ -35,10 +35,8 @@ async fn main() -> anyhow::Result<()> {
     };
 
     if args.server {
-        let mut serv = Server::connect(settings).await?;
-        serv.run().await
+        Server::run(settings).await
     } else {
-        let mut client = Client::connect(settings).await?;
-        client.run().await
+        Client::run(settings).await
     }
 }
