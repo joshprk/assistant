@@ -4,10 +4,7 @@ use crate::Settings;
 use crate::traits::Runnable;
 use crate::transport::TransportClient;
 
-pub struct Server {
-    listener: UnixListener,
-    settings: Settings,
-}
+pub struct Server { }
 
 impl Runnable for Server {
     async fn run(settings: Settings) -> anyhow::Result<()> {

@@ -25,10 +25,7 @@ use crate::Settings;
 use crate::traits::Runnable;
 use crate::transport::TransportClient;
 
-pub struct Client {
-    transport_client: TransportClient,
-    settings: Settings,
-}
+pub struct Client { }
 
 impl Client {
     async fn spawn_server(settings: &Settings) -> anyhow::Result<TransportClient> {
