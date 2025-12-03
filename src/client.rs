@@ -19,11 +19,13 @@ use ratatui::widgets::BorderType;
 use ratatui::widgets::Borders;
 use ratatui::widgets::Padding;
 use ratatui::widgets::Paragraph;
+use tui_textarea::CursorMove;
 use tui_textarea::TextArea;
 
 use crate::Settings;
 use crate::traits::Runnable;
 use crate::transport::TransportClient;
+use crate::transport::TransportEvent;
 
 pub struct Client { }
 
@@ -59,7 +61,7 @@ impl Client {
         let text_block = Block::default()
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
-            .title("Input")
+            .title("Chat")
             .padding(Padding::symmetric(1, 0));
 
         let mut text_area = TextArea::default();
@@ -99,7 +101,7 @@ impl Runnable for Client {
             };
 
             // Handle crossterm events
-            if crossterm::event::poll(Duration::from_millis(300))? {
+            if crossterm::event::poll(Duration::from_millis(100))? {
                 let event = crossterm::event::read()?;
 
                 if let Event::Key(key) = event {
@@ -112,7 +114,29 @@ impl Runnable for Client {
                         }
                     } else if key.modifiers.contains(KeyModifiers::ALT) {
                         if key.code == KeyCode::Enter {
+                            let message = text_area.lines().join("\n");
+                            let t_event = TransportEvent::UserMessage { message };
+                            let _ = transport_client.send(t_event).await;
                             text_area = Self::create_input_area().await;
+                        }
+                    } else if let Some(selection_range) = text_area.selection_range() {
+                        let ((x_start, x_end), (y_start, y_end)) = selection_range;
+                        let mut cursor_move = None;
+
+                        if key.code == KeyCode::Left {
+                            cursor_move = Some(CursorMove::Jump(x_start as u16, y_start as u16));
+                        } else if key.code == KeyCode::Right {
+                            cursor_move = Some(CursorMove::Jump(x_end as u16, y_end as u16));
+                        }
+
+                        if let Some(cursor_move) = cursor_move {
+                            text_area.move_cursor(cursor_move);
+                            text_area.cancel_selection();
+                        } else {
+                            // FIXME: Hack to delete selection text
+                            let buffer = text_area.yank_text();
+                            text_area.cut();
+                            text_area.set_yank_text(buffer);
                         }
                     } else {
                         text_area.input(key);

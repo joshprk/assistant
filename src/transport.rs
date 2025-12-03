@@ -13,7 +13,7 @@ use tokio_util::codec::LengthDelimitedCodec;
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", content = "content")]
 pub enum TransportEvent {
-    ToolCall { name: String, arguments: String },
+    UserMessage { message: String },
     MessageDelta { delta: String },
 }
 
