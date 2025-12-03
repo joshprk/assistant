@@ -14,7 +14,6 @@ use tokio_util::codec::LengthDelimitedCodec;
 #[serde(tag = "type", content = "content")]
 pub enum TransportEvent {
     UserMessage { message: String },
-    MessageDelta { delta: String },
 }
 
 #[derive(Debug)]

@@ -18,7 +18,6 @@ use ratatui::widgets::Block;
 use ratatui::widgets::BorderType;
 use ratatui::widgets::Borders;
 use ratatui::widgets::Padding;
-use ratatui::widgets::Paragraph;
 use tui_textarea::TextArea;
 
 use crate::Settings;
@@ -90,25 +89,20 @@ impl Runnable for Client {
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
         let mut text_area = Self::create_input_area().await;
-        let chat_text = Paragraph::new("Messages will appear here");
 
         // Main event loop
         loop {
             // Handle server events
-            if let Some(event) = transport_client.recv().await? {
-                // TODO: Handle server events
-            };
+            if let Some(event) = transport_client.recv().await? { }
 
             // Handle crossterm events
-            if crossterm::event::poll(Duration::from_millis(100))? {
+            if crossterm::event::poll(Duration::from_millis(settings.client_ui_poll_ms))? {
                 let event = crossterm::event::read()?;
 
                 if let Event::Key(key) = event {
                     // TODO: More useful keybinds
                     if key.modifiers.contains(KeyModifiers::CONTROL) {
-                        if key.code == KeyCode::Char('q') {
-                            break
-                        } else if key.code == KeyCode::Char('a') {
+                        if key.code == KeyCode::Char('a') {
                             text_area.select_all();
                         }
                     } else if key.modifiers.contains(KeyModifiers::ALT) {
@@ -118,6 +112,8 @@ impl Runnable for Client {
                             let _ = transport_client.send(t_event).await;
                             text_area = Self::create_input_area().await;
                         }
+                    } else if key.code == KeyCode::Esc {
+                        break
                     } else {
                         text_area.input(key);
                     }
@@ -135,7 +131,6 @@ impl Runnable for Client {
                     ])
                     .split(f.area());
 
-                f.render_widget(&chat_text, chunks[0]);
                 f.render_widget(&text_area, chunks[1]);
             })?;
         }

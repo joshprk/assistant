@@ -6,10 +6,12 @@ use crate::client::Client;
 use crate::server::Server;
 use crate::traits::Runnable;
 
+mod chat;
 mod client;
 mod server;
 mod traits;
 mod transport;
+mod ui;
 
 #[derive(Debug, Parser)]
 struct Args {
@@ -20,6 +22,7 @@ struct Args {
 struct Settings {
     client_timeout: u64,
     client_retry_ms: u64,
+    client_ui_poll_ms: u64,
     socket_path: PathBuf,
 }
 
@@ -31,6 +34,7 @@ async fn main() -> anyhow::Result<()> {
     let settings = Settings {
         client_timeout: 10,
         client_retry_ms: 100,
+        client_ui_poll_ms: 100,
         socket_path: "./test.sock".into()
     };
 
